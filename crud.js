@@ -22,11 +22,15 @@ const rl = readline.createInterface({
 let mode = 'main';
 
 rl.on('line',async (input) => {
-  mode === 'main' && handleMain(input.trim());
-  mode === 'create' && handleCreate(input.trim());
-  mode === 'read' && handleRead(input.trim());
-  mode === 'update' && handleUpdate(input.trim());
-  mode === 'delete' && handleDelete(input.trim());
+  let i = input.trim();
+  switch(mode) {
+    case 'main': await handleMain(i); break;
+    case 'create' : await handleCreate(i); break;
+    case 'read' : await handleRead(i); break;
+    case 'listCollection' : await hadleListCollection(i); break;
+    case 'update' : await handleUpdate(i); break;
+    case 'delete' : await handleDelete(i); break;
+  } 
   console.log('현재 모드 : ' + mode);
 });
 
@@ -76,28 +80,36 @@ async function handleMain(input) {
   }
 
 async function handleCreate(input) {
-  if(['4','tomain','main'].includes(input)){mode = 'main'; return;}
+  if(['4','exit'].includes(input)){mode = 'main'; return;}
 }
 async function handleRead(input) {
     console.log('사용가능 명령어 : 1.listDatabase 2.listCollection 3.find 4.toMain');
     if(['1', 'listdatabase'].includes(input)){
       let listDatabase = await mongo.db().admin().listDatabases();
-      console.log(...(listDatabase.databases.map((db) => {return db.name;})));
+      console.log(listDatabase.databases.map((db) => {return db.name;}));
     }
     if(['2', 'listcollection'].includes(input)){
-      let listDatabase = await mongo.db().admin().listDatabases();
-      console.log(...(listDatabase.databases.map((db) => {return db.name;})));
-
+      mode = 'listCollection';
+      return;
     }
-    if(['4','tomain','main'].includes(input)){mode = 'main'; return;}
+    if(['4','exit'].includes(input)){mode = 'main'; return;}
 }
 async function handleUpdate(input) {
-  if(['4','tomain','main'].includes(input)){mode = 'main'; return;}
+  if(['4','exit'].includes(input)){mode = 'main'; return;}
 }
 async function handleDelete(input) {
-  if(['4','tomain','main'].includes(input)){mode = 'main'; return;}
+  if(['4','exit'].includes(input)){mode = 'main'; return;}
 }
 
+async function hadleListCollection(input) {
+  console.log('사용가능 명령어 : 일반 입력 DB이름, 1.exit 돌아가기');
+  if('' === input){return;}
+  if(['1','exit'].includes(input)){mode = 'read'; return;}
+  let dbname = input;
+  let listCollection = await mongo.db(input).listCollections().map((lc)=>{return lc.name});
+    
+  console.log(listCollection);
+}
 
 async function exit() {
   if(connectStatus){
