@@ -1,43 +1,45 @@
-const express = require('express');
-const app = express();
 const mongoose = require('mongoose');
 const readline = require('readline');
 const mongodb = require('mongodb');
-const { boolean } = require('webidl-conversions');
 
-const hostname = '127.0.0.1';
-const port = 5500;
 const uri = 'mongodb+srv://yoop80075:whrudwns!048576@cluster0.r9zhf.mongodb.net/';
 const mongo = new mongodb.MongoClient(uri);
 let connectStatus = false;
-app.listen(port, hostname, async () => {
-  console.log(`서버가 시작되었습니다. http://${hostname}:${port}/`);
-});
 
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
+function scan(query) {
+  return new Promise((resolve) => rl.question(query, resolve));
+}
+
 let mode = 'main';
+let tempMode = '';
+let listDatabase = [];
+let selectDb = '';
+let selectCollection = '';
 
-rl.on('line',async (input) => {
-  let i = input.trim();
-  switch(mode) {
-    case 'main': await handleMain(i); break;
-    case 'create' : await handleCreate(i); break;
-    case 'read' : await handleRead(i); break;
-    case 'listCollection' : await hadleListCollection(i); break;
-    case 'update' : await handleUpdate(i); break;
-    case 'delete' : await handleDelete(i); break;
-  } 
-  console.log('현재 모드 : ' + mode);
-});
-
-async function handleMain(input) {
+async function startloop() {
+  while(true){
+    console.log('현재 모드 : ' + mode);
+    switch(mode) {
+      case 'main': await handleMain(); break;
+      case 'create' : await handleCreate(); break;
+      case 'read' : await handleRead(); break;
+      case 'update' : await handleUpdate(); break;
+      case 'delete' : await handleDelete(); break;
+    } 
+  }
+}
+startloop();
+async function handleMain() {
   connectStatus = mongoose.connection.readyState === 1 ? true : false;
   console.log(`몽고DB 연결상태 : ${connectStatus ? '연결':'미연결'}`);
   console.log('사용가능 명령어 : 1.connent, 2.create, 3.read, 4.update, 5.delete, 6.exit');
+  let input = await scan('');
+  input = input.trim();
   if(['1','connect'].includes(input)) {
       if(connectStatus){
         try {
@@ -79,36 +81,55 @@ async function handleMain(input) {
   console.log(`없는 명령어 입니다. : ${input}`)
   }
 
-async function handleCreate(input) {
+async function handleCreate() {
+  console.log('선택된 DB :' + selectDb);
+  console.log('선택된 컬렉션 :' + selectCollection);
+  console.log('사용가능 명령어 : 1.DB 및 컬렉션 선택 2.한개 생성 3.다수 생성 4.exit');
+  let input = await scan('');
+  input = input.trim();
+  if('' === input){return;}
+  if(['1','selectdb'].includes(input)){
+    console.log('선택할 DB를 입력해주세요.');
+    listDatabase.map((db,i) => {console.log(`${i+1}. ${db}`);})
+    let dbNum = await scan('');
+    dbNum = dbNum.trim();
+      selectDb = listDatabase[dbNum-1];
+      let listCollection = (await mongo.db(selectDb).listCollections().toArray()).map((lc)=>{return lc.name;});
+      console.log('선택할 컬렉션을 입력해주세요.');
+      listCollection.map((db,i) => {console.log(`${i+1}. ${db}`);})
+      let colNum = await scan('');
+      colNum = colNum.trim();
+      selectCollection = listCollection[dbNum-1];
+    return;
+  }
+  if(['2','selectcollection'].includes(input)){mode = 'main'; return;}
   if(['4','exit'].includes(input)){mode = 'main'; return;}
 }
-async function handleRead(input) {
-    console.log('사용가능 명령어 : 1.listDatabase 2.listCollection 3.find 4.toMain');
+async function handleRead() {
+    console.log('사용가능 명령어 : 1.listDatabase 2.listCollection 3.find 4.exit');
+    let input = await scan('');
+    input = input.trim();
     if(['1', 'listdatabase'].includes(input)){
-      let listDatabase = await mongo.db().admin().listDatabases();
-      console.log(listDatabase.databases.map((db) => {return db.name;}));
+      listDatabase = (await mongo.db().admin().listDatabases()).databases.map((db) => {return db.name;});
+      console.log(listDatabase);
     }
     if(['2', 'listcollection'].includes(input)){
-      mode = 'listCollection';
+      listDatabase.map((db,i) => {console.log(`${i+1}. ${db}`);})
+      let dbNum = await scan('');
+      dbNum = dbNum.trim();
+      let dbname = listDatabase[input-1];
+      let listCollection = (await mongo.db(dbname).listCollections().toArray()).map((lc)=>{return lc.name;});
+        
+      console.log(listCollection);
       return;
     }
     if(['4','exit'].includes(input)){mode = 'main'; return;}
 }
-async function handleUpdate(input) {
+async function handleUpdate() {
   if(['4','exit'].includes(input)){mode = 'main'; return;}
 }
-async function handleDelete(input) {
+async function handleDelete() {
   if(['4','exit'].includes(input)){mode = 'main'; return;}
-}
-
-async function hadleListCollection(input) {
-  console.log('사용가능 명령어 : 일반 입력 DB이름, 1.exit 돌아가기');
-  if('' === input){return;}
-  if(['1','exit'].includes(input)){mode = 'read'; return;}
-  let dbname = input;
-  let listCollection = await mongo.db(input).listCollections().toArray();
-    
-  console.log(listCollection.map((lc)=>{return lc.name;}));
 }
 
 async function exit() {
@@ -124,57 +145,4 @@ async function exit() {
 }
 
 process.on('SIGINT', async () => {exit();});
-
-// switch (input.trim()) {
-//   case 'connent':
-//     if (mongoose.connection.readyState === 1) {
-//       console.log('이미 몽고DB와 연결되어있습니다.');
-//       break;
-//     } else {
-//       try {
-//         await mongoose.connect(url);
-//         console.log('몽고DB연결에 성공하였습니다.');
-//       } catch (error) {
-//         console.error('연결에 실패하였습니다. :', error);
-//       }
-//     };
-//     break;
-
-//   case 'disconnent':
-//     await mongoose.disconnect();
-//     console.log(`몽고DB와의 연결을 해제하였습니다.`);
-//     break;
-
-//   case 'create':
-//     console.log(`create를 입력했습니다.`);
-//     break;
-
-//   case 'read':
-//     console.log(`read를 입력했습니다.`);
-//     break;
-
-//   case 'update':
-//     console.log(`update를 입력했습니다.`);
-//     break;
-
-//     case 'list':
-//       const adminDb = mongo.db().admin();
-//       let dbs = await adminDb.listDatabases();
-//       console.log('현재 데이터베이스 목록:');
-//       dbs.databases.forEach(db => console.log(` - ${db.name}`));
-//       break;
-
-//   case 'delete':
-//     console.log(`delete를 입력했습니다.`);
-//     break;
-//   case 'costom':
-//     console.log(`delete를 입력했습니다.`);
-//     break;
-//   case 'help':
-//     console.log(`${help}`);
-//     break;
-
-
-// }
-
 
