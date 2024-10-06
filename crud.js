@@ -106,9 +106,9 @@ async function hadleListCollection(input) {
   if('' === input){return;}
   if(['1','exit'].includes(input)){mode = 'read'; return;}
   let dbname = input;
-  let listCollection = await mongo.db(input).listCollections().map((lc)=>{return lc.name});
+  let listCollection = await mongo.db(input).listCollections().toArray();
     
-  console.log(listCollection);
+  console.log(listCollection.map((lc)=>{return lc.name;}));
 }
 
 async function exit() {
